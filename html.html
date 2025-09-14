@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Your Earnings Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Available Balance</h6>
+                                <h3 class="text-primary">₹{{ "%.2f"|format(user_data.earnings) }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Today's Earnings</h6>
+                                <h3 class="text-success">₹{{ "%.2f"|format(user_data.ad_views_today * 0.11) }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Withdrawn</h6>
+                                <h3 class="text-info">₹{{ "%.2f"|format(user_data.withdrawn) }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Ad Statistics</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>Ads Watched Today: {{ user_data.ad_views_today }}/10</p>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ (user_data.ad_views_today / 10) * 100 }}%">
+                                    </div>
+                                </div>
+                                <p>Total Ads Watched: {{ user_data.total_ad_views }}</p>
+                                <p>Referral Earnings: ₹{{ "%.2f"|format(user_data.referral_earnings) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Quick Actions</h6>
+                            </div>
+                            <div class="card-body">
+                                <a href="{{ url_for('ads_page') }}" class="btn btn-primary btn-block mb-2 w-100">
+                                    Watch Ads
+                                </a>
+                                <a href="{{ url_for('withdraw') }}" class="btn btn-success btn-block mb-2 w-100">
+                                    Withdraw Earnings
+                                </a>
+                                <button class="btn btn-info btn-block w-100" data-bs-toggle="modal" data-bs-target="#referralModal">
+                                    Get Referral Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Referral Program</h5>
+            </div>
+            <div class="card-body">
+                <p>Earn ₹0.10 for each friend who signs up using your referral link and watches 10 ads.</p>
+                <p>Total Referrals: {{ user_data.referrals }}</p>
+                <p>Referral Earnings: ₹{{ "%.2f"|format(user_data.referral_earnings) }}</p>
+                <button class="btn btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#referralModal">
+                    View Referral Link
+                </button>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <p>Your recent activities will appear here.</p>
+                <!-- Recent activities would be populated from database -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Referral Modal -->
+<div class="modal fade" id="referralModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Your Referral Link</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Share this link with your friends to earn ₹0.10 when they sign up and watch 10 ads:</p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="referralLink" 
+                           value="{{ request.host_url }}auth?ref={{ user_data.referral_code }}" readonly>
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyReferralLink()">
+                        Copy
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyReferralLink() {
+    const copyText = document.getElementById("referralLink");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    alert("Copied the referral link: " + copyText.value);
+}
+</script>
+{% endblock %}
