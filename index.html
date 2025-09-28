@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader</title>
+    <style>
+        :root {
+            --primary-color: #ff0000;
+            --secondary-color: #282828;
+            --background-color: #121212;
+            --text-color: #ffffff;
+            --success-color: #4caf50;
+            --error-color: #f44336;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: var(--secondary-color);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .description {
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        .url-input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #333;
+            color: var(--text-color);
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        
+        .url-input:focus {
+            outline: 2px solid var(--primary-color);
+        }
+        
+        .download-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .download-btn:hover {
+            background-color: #cc0000;
+        }
+        
+        .download-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background-color: var(--success-color);
+            display: block;
+        }
+        
+        .error {
+            background-color: var(--error-color);
+            display: block;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .video-info {
+            background-color: #333;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .video-thumbnail {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .video-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .format-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .format-btn {
+            padding: 8px 15px;
+            background-color: #444;
+            border: none;
+            border-radius: 5px;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .format-btn:hover {
+            background-color: #555;
+        }
+        
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>YouTube Video Downloader</h1>
+            <p class="description">Paste a YouTube video URL below to download it in your preferred format</p>
+        </header>
+        
+        <section class="input-section">
+            <input type="text" id="urlInput" class="url-input" placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=...)" autocomplete="off">
+            <button id="downloadBtn" class="download-btn">Download Video</button>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Processing your request...</span>
+            </div>
+            
+            <div id="videoInfo" class="video-info">
+                <img id="videoThumbnail" class="video-thumbnail" src="" alt="Video thumbnail">
+                <h3 id="videoTitle" class="video-title"></h3>
+                <p>Select download format:</p>
+                <div class="format-options" id="formatOptions">
+                    <!-- Format buttons will be added here -->
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <p>This is a demonstration interface. Actual downloading requires server-side implementation.</p>
+            <p>Respect copyright and only download content you have permission to use.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlInput = document.getElementById('urlInput');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const statusMessage = document.getElementById('statusMessage');
+            const loading = document.getElementById('loading');
+            const videoInfo = document.getElementById('videoInfo');
+            const videoThumbnail = document.getElementById('videoThumbnail');
+            const videoTitle = document.getElementById('videoTitle');
+            const formatOptions = document.getElementById('formatOptions');
+            
+            // URL validation function
+            function isValidYouTubeUrl(url) {
+                const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
+                return youtubeRegex.test(url);
+            }
+            
+            // Extract video ID from URL
+            function getVideoId(url) {
+                const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+                const match = url.match(regExp);
+                return (match && match[7].length === 11) ? match[7] : false;
+            }
+            
+            // Update button state based on URL validity
+            function updateButtonState() {
+                const url = urlInput.value.trim();
+                downloadBtn.disabled = !isValidYouTubeUrl(url);
+            }
+            
+            // Show status message
+            function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = 'status-message';
+                statusMessage.classList.add(type);
+            }
+            
+            // Hide status message
+            function hideStatus() {
+                statusMessage.style.display = 'none';
+            }
+            
+            // Simulate backend API call
+            function simulateBackendCall(videoId) {
+                return new Promise((resolve) => {
+                    // Simulate API delay
+                    setTimeout(() => {
+                        // In a real implementation, this would be the response from your backend
+                        const mockResponse = {
+                            success: true,
+                            videoInfo: {
+                                title: `Sample Video Title (ID: ${videoId})`,
+                                thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+                                formats: [
+                                    { quality: '1080p', format: 'mp4', size: '125 MB' },
+                                    { quality: '720p', format: 'mp4', size: '85 MB' },
+                                    { quality: '480p', format: 'mp4', size: '45 MB' },
+                                    { quality: '360p', format: 'mp4', size: '25 MB' },
+                                    { quality: 'Audio Only', format: 'mp3', size: '8 MB' }
+                                ]
+                            }
+                        };
+                        resolve(mockResponse);
+                    }, 2000);
+                });
+            }
+            
+            // Handle download button click
+            downloadBtn.addEventListener('click', async function() {
+                const url = urlInput.value.trim();
+                
+                if (!isValidYouTubeUrl(url)) {
+                    showStatus('Please enter a valid YouTube URL', 'error');
+                    return;
+                }
+                
+                const videoId = getVideoId(url);
+                if (!videoId) {
+                    showStatus('Could not extract video ID from URL', 'error');
+                    return;
+                }
+                
+                // Show loading state
+                loading.style.display = 'flex';
+                videoInfo.style.display = 'none';
+                hideStatus();
+                downloadBtn.disabled = true;
+                
+                try {
+                    // Simulate API call to backend
+                    const response = await simulateBackendCall(videoId);
+                    
+                    if (response.success) {
+                        // Display video information
+                        videoThumbnail.src = response.videoInfo.thumbnail;
+                        videoThumbnail.alt = response.videoInfo.title;
+                        videoTitle.textContent = response.videoInfo.title;
+                        
+                        // Create format buttons
+                        formatOptions.innerHTML = '';
+                        response.videoInfo.formats.forEach(format => {
+                            const button = document.createElement('button');
+                            button.className = 'format-btn';
+                            button.textContent = `${format.quality} (${format.format}) - ${format.size}`;
+                            button.addEventListener('click', function() {
+                                showStatus(`Downloading in ${format.quality} ${format.format} format...`, 'success');
+                                // In a real implementation, this would trigger the actual download
+                                // For now, we just show a success message
+                            });
+                            formatOptions.appendChild(button);
+                        });
+                        
+                        videoInfo.style.display = 'block';
+                        showStatus('Video information loaded successfully', 'success');
+                    } else {
+                        showStatus('Error retrieving video information', 'error');
+                    }
+                } catch (error) {
+                    showStatus('Error connecting to server', 'error');
+                    console.error('Error:', error);
+                } finally {
+                    loading.style.display = 'none';
+                    downloadBtn.disabled = false;
+                }
+            });
+            
+            // Update button state as user types
+            urlInput.addEventListener('input', updateButtonState);
+            
+            // Initialize button state
+            updateButtonState();
+        });
+    </script>
+</body>
+</html>
