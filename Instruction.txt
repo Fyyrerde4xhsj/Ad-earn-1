@@ -1,0 +1,7 @@
+Instruction: 
+Please copy the entire code and Paste it in notepad to get 100%
+working output
+
+FOR FIREBASE SETUP PLEASE WATCH THIS HALF PART OF VIDEO:
+
+https://youtu.be/1qGJnXa8siw

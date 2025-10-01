@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html b:css='false' b:defaultwidgetversion='2' b:layoutsVersion='3' b:responsive='true' b:templateUrl='indie.xml' b:templateVersion='1.3.3' expr:dir='data:blog.languageDirection' expr:lang='data:blog.locale' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gml/b' xmlns:data='http://www.google.com/2005/gml/data' xmlns:expr='http://www.google.com/2005/gml/expr'>
+  <head>
+    <meta content='width=device-width, initial-scale=1' name='viewport'/>
+
+    <title>Tap Swap</title>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- Shared Design System --- */
+        :root {
+            --primary-gradient: linear-gradient(180deg, #0d47a1 0%, #00bcd4 100%);
+            --background-color: #0d1a3a;
+            --text-color: #ffffff;
+            --text-color-secondary: #b0bec5;
+            --accent-color: #00e5ff;
+            --bottom-nav-bg: rgba(22, 43, 85, 0.85);
+            --card-bg: linear-gradient(145deg, #19376d, #0b2249);
+            --shadow-color: rgba(0, 229, 255, 0.2);
+            --border-color: rgba(0, 229, 255, 0.3);
+            --disabled-color: #455a64;
+            --success-color: #00e676;
+            --danger-color: #ff5252;
+            --coin-gold-gradient: linear-gradient(145deg, #ffd700, #ffb300);
+            --energy-color: #ffc900;
+            --energy-bg: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Basic Reset & Font */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            height: 100%; width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overscroll-behavior-y: none;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-size: 16px; line-height: 1.5;
+            overflow: hidden;
+        }
+
+        /* --- Containers --- */
+        #app, #authContainer, #adminContainer { display: flex; flex-direction: column; height: 100vh; width: 100%; overflow: hidden; background: var(--primary-gradient); }
+        #app, #adminContainer { display: none; }
+        #content, .admin-container { flex-grow: 1; overflow-y: auto; padding: 20px 20px 100px 20px; -webkit-overflow-scrolling: touch; }
+        .admin-container { padding: 20px; }
+
+        /* Page Transitions */
+        .page { display: none; flex-direction: column; align-items: center; width: 100%; animation: fadeIn 0.4s ease-out; }
+        .page.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Tap Page Styles --- */
+        #tapPage { justify-content: space-around; height: 100%; text-align: center; padding: 15px; margin-top:-9%; position: relative; }
+        #tapPage::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: linear-gradient(rgba(0, 229, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.07) 1px, transparent 1px);
+            background-size: 40px 40px; opacity: 0.5; z-index: 0;
+        }
+        #tapPage > * { position: relative; z-index: 1; }
+        .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; }
+        #rewardsButton { background: transparent; border: none; cursor: pointer; position: relative; }
+        #rewardsButton svg { width: 40px; height: 40px; fill: #ffd700; }
+        @keyframes glow { 0%, 100% { filter: drop-shadow(0 0 4px #ffee58); } 50% { filter: drop-shadow(0 0 12px #ffee58); } }
+        #rewardsButton.ready { animation: glow 1.5s infinite; }
+        .energy-display { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 120px; }
+        .energy-level { font-size: 1.1em; font-weight: 600; color: var(--energy-color); }
+        .energy-bar-container { width: 100%; height: 10px; background-color: var(--energy-bg); border-radius: 5px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); }
+        #energyBar { height: 100%; width: 100%; background: var(--energy-color); border-radius: 5px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .balance-container { display: flex; flex-direction: column; align-items: center; }
+        .balance-amount { font-size: 3.5em; font-weight: 800; color: var(--text-color); line-height: 1; }
+        .balance-label { font-size: 1em; font-weight: 500; color: var(--text-color-secondary); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+        .tap-area { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; user-select: none; }
+        #coinButton {
+            width: 250px; height: 250px; border-radius: 50%; background: var(--coin-gold-gradient);
+            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 4px 10px rgba(255,255,255,0.5), inset 0 -5px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease, box-shadow 0.1s ease; font-size: 100px; text-shadow: 0 3px 5px rgba(0,0,0,0.3);
+        }
+        #coinButton:active { transform: scale(0.95); box-shadow: 0 5px 10px rgba(0,0,0,0.3), inset 0 2px 8px rgba(0,0,0,0.4), inset 0 -2px 5px rgba(255,255,255,0.4); }
+        .tap-button {
+            width: 100%; max-width: 300px; padding: 16px; font-size: 1.2em; font-weight: 700; background: linear-gradient(180deg, #00b8d4, #00838f);
+            color: var(--text-color); border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 5px 15px rgba(0, 184, 212, 0.4);
+            text-transform: uppercase; letter-spacing: 1.5px;
+        }
+        .plus-one-animation {
+            position: absolute; font-size: 2em; font-weight: bold; color: var(--text-color); text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            user-select: none; pointer-events: none; animation: floatUp 1.5s ease-out forwards; z-index: 9999;
+        }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100px); opacity: 0; } }
+
+        /* Navigation */
+        #bottomNav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 85px; background-color: var(--bottom-nav-bg);
+            -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); border-top: 1px solid var(--border-color);
+            display: flex; justify-content: space-around; padding: 10px 0 20px 0; z-index: 1000;
+        }
+        .nav-button {
+            background: none; border: none; color: var(--text-color-secondary); cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 11px; font-weight: 500; flex-grow: 1; transition: color 0.3s ease;
+        }
+        .nav-button svg { width: 28px; height: 28px; margin-bottom: 4px; }
+        .nav-button.active { color: var(--text-color); }
+
+        /* Modal */
+        #modalOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 2000; animation: fadeIn 0.3s ease;
+        }
+        #modalOverlay.visible { display: flex; }
+        .modal-content {
+            background: var(--card-bg); padding: 30px; border-radius: 24px; border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px var(--shadow-color); text-align: center; width: 90%; max-width: 350px;
+            animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        .modal-content h2 { font-size: 1.8em; margin-bottom: 10px; }
+        .modal-content p { color: var(--text-color-secondary); margin-bottom: 25px; }
+        .modal-content .primary-button { width: 100%; }
+
+        /* Generic Components */
+        .card {
+            border-radius: 24px; padding: 25px; margin-bottom: 20px; width: 100%; max-width: 550px;
+            background: var(--card-bg); box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+        }
+        .card-header { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 25px; }
+        .card-header svg { width: 32px; height: 32px; fill: var(--accent-color); }
+        .card-header h2 { margin-bottom: 0; font-size: 1.6em; font-weight: 700; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 0.9em; font-weight: 500; color: var(--text-color-secondary); }
+        .form-group input, .form-group select {
+            width: 100%; padding: 14px 16px; border: 1px solid var(--border-color); border-radius: 10px;
+            font-size: 1em; background-color: var(--background-color); color: var(--text-color); transition: all 0.2s ease;
+        }
+        .form-group input:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--shadow-color); }
+        .primary-button {
+            width: 100%; padding: 16px; font-size: 1.1em; font-weight: 600; background-color: var(--accent-color); color: var(--background-color);
+            border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; margin-top: 10px;
+        }
+        .primary-button:hover:not(:disabled) { background-color: #84ffff; box-shadow: 0 4px 15px var(--shadow-color); }
+        .primary-button:disabled { background-color: var(--disabled-color); color: var(--text-color-secondary); cursor: not-allowed; opacity: 0.7; }
+
+        /* Page-specific Lists */
+        #taskList, #leaderboardList { list-style:none; width:100%; }
+        .task-item { background-color: rgba(0,0,0,0.2); display: flex; align-items: center; border-radius: 16px; margin-bottom: 12px; padding: 15px; border: 1px solid var(--border-color); }
+        .task-button { width:auto; padding: 8px 16px; font-size: 0.9em; margin-top:0; }
+        .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; background-color: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 10px; }
+        .leaderboard-item.is-user { box-shadow: 0 0 10px var(--accent-color); border: 1px solid var(--accent-color); }
+        .leaderboard-rank { font-size: 1.1em; font-weight: 600; color: var(--text-color-secondary); width: 40px; }
+        .leaderboard-name { font-weight: 500; flex-grow: 1; }
+        .leaderboard-points { font-weight: 600; color: var(--accent-color); }
+        .leaderboard-item:nth-child(1) .leaderboard-rank { color: #ffd700; }
+        .leaderboard-item:nth-child(2) .leaderboard-rank { color: #c0c0c0; }
+        .leaderboard-item:nth-child(3) .leaderboard-rank { color: #cd7f32; }
+
+        /* --- Admin Panel Styles --- */
+        .admin-container .card { max-width: 800px; margin-left: auto; margin-right: auto; }
+        .tab-nav { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; }
+        .tab-button {
+            background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-color-secondary);
+            width: 50px; height: 50px; border-radius: 50%; cursor: pointer; transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .tab-button svg { width: 26px; height: 26px; fill: var(--text-color-secondary); transition: fill 0.2s ease; }
+        .tab-button:hover { background-color: var(--border-color); }
+        .tab-button.active { background-color: var(--accent-color); }
+        .tab-button.active svg { fill: var(--background-color); }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        .stats-grid { display: flex; gap: 15px; margin-bottom: 30px; }
+        .stat-card {
+            flex: 1; background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px;
+            text-align: center; border: 1px solid var(--border-color);
+        }
+        .stat-card svg { width: 28px; height: 28px; fill: var(--text-color-secondary); margin-bottom: 8px; }
+        .stat-card .stat-number { font-size: 1.5em; font-weight: 700; color: var(--accent-color); display: block; }
+        .stat-card .stat-label { font-size: 0.8em; color: var(--text-color-secondary); text-transform: uppercase; }
+        .chart-container { margin-bottom: 20px; }
+        .chart-container h3 { margin-bottom: 15px; text-align: center; font-weight: 500; color: var(--text-color-secondary); }
+        .search-bar { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1em; background-color: var(--background-color); color: var(--text-color); margin-bottom: 20px; }
+        .user-table-wrapper { overflow-x: auto; }
+        .user-table { width: 100%; border-collapse: collapse; }
+        .user-table th, .user-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .user-table th { font-weight: 600; color: var(--text-color-secondary); }
+        .user-table td .username { font-weight: 500; color: var(--text-color); }
+        .action-button { background: none; border: 1px solid var(--border-color); color: var(--text-color-secondary); padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; margin-right: 5px; }
+        .action-button.delete { border-color: var(--danger-color); color: var(--danger-color); }
+        .action-button:hover { background-color: var(--border-color); color: var(--text-color); }
+        .action-button.delete:hover { background-color: rgba(255, 82, 82, 0.1); }
+        .settings-section { border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 10px; }
+        .settings-section h3 { margin-bottom: 10px; font-weight: 600; }
+        .settings-section p { color: var(--text-color-secondary); margin-bottom: 20px; max-width: 500px; }
+        #wipeDataButton { background-color: var(--danger-color); color: white; width: 100%; max-width: 300px; padding: 12px; font-size: 1em; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--background-color); display: flex; justify-content: center; align-items: center; z-index: 9999; font-size: 1.2em; transition: opacity 0.3s ease;">Loading...</div>
+
+    <!-- Authentication -->
+    <div id="authContainer">
+        <div id="loginPage" class="auth-page page active">
+            <div class="card">
+                <div class="card-header"><h2>Welcome Back</h2></div>
+                <form id="loginForm">
+                    <div class="form-group"><label for="loginUsername">Username</label><input type="text" id="loginUsername" required></div>
+                    <div class="form-group"><label for="loginPassword">Password</label><input type="password" id="loginPassword" required></div>
+                    <button type="submit" class="primary-button">Login</button>
+                    <p id="loginMessage" style="text-align:center; color: var(--danger-color); min-height: 1.2em; margin-top:15px;"></p>
+                </form>
+                <div style="text-align: center; margin-top: 15px;">Don't have an account? <a id="showRegister" style="color: var(--accent-color); cursor:pointer; font-weight: 500;">Register</a></div>
+            </div>
+        </div>
+        <div id="registerPage" class="auth-page page">
+            <div class="card">
+                <div class="card-header"><h2>Create Account</h2></div>
+                <form id="registerForm">
+                    <div class="form-group"><label for="registerUsername">Username</label><input type="text" id="registerUsername" required></div>
+                    <div class="form-group"><label for="registerPassword">Password</label><input type="password" id="registerPassword" required></div>
+                    <button type="submit" class="primary-button">Register</button>
+                    <p id="registerMessage" style="text-align:center; color: var(--danger-color); min-height: 1.2em; margin-top:15px;"></p>
+                </form>
+                <div style="text-align: center; margin-top: 15px;">Already have an account? <a id="showLogin" style="color: var(--accent-color); cursor:pointer; font-weight: 500;">Login</a></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app">
+        <div id="content">
+            <!-- Tap Page -->
+            <div id="tapPage" class="page active">
+                <div class="top-bar">
+                    <div class="energy-display">
+                        <span id="energyLevel" class="energy-level">⚡ 1000</span>
+                        <div class="energy-bar-container"><div id="energyBar"></div></div>
+                    </div>
+                    <button id="rewardsButton">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 6h-2.18c.11-.31.18-.65.18-1a3 3 0 0 0-3-3c-1.12 0-2.11.61-2.63 1.52A3.001 3.001 0 0 0 9.5 2C7.57 2 6 3.57 6 5.5c0 .35.07.69.18 1H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.9-2-2-2zm-5-2c.83 0 1.5.67 1.5 1.5S15.83 7 15 7s-1.5-.67-1.5-1.5S14.17 4 15 4zM9 5.5C9 4.67 9.67 4 10.5 4s1.5.67 1.5 1.5S11.33 7 10.5 7 9 6.33 9 5.5zM4 8h16v3h-2v-1H6v1H4V8zm16 12H4V13h2v1h12v-1h2v7z"/></svg>
+                    </button>
+                </div>
+                <div class="balance-container">
+                    <span id="pointsDisplay" class="balance-amount">0</span>
+                    <span class="balance-label">Balance</span>
+                </div>
+                <div class="tap-area">
+                    <button id="coinButton">🐱</button>
+                    <button class="tap-button">Tap to get points</button>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="settingsPage" class="page">
+                 <div class="card">
+                     <div class="card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61-.25-1.17-.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19-.15-.24-.42.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59-1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                        <h2>Settings</h2>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding: 14px 0; border-bottom: 1px solid var(--border-color);"><span>Username</span><span id="profileName">...</span></div>
+                    <div style="display:flex; justify-content:space-between; padding: 14px 0; border-bottom: 1px solid var(--border-color);"><span>User ID</span><span id="profileUserId">...</span></div>
+                    <div style="display:flex; justify-content:space-between; padding: 14px 0; border-bottom: 1px solid var(--border-color);"><span>Points</span><span id="profilePoints">0</span></div>
+                    <div style="display:flex; justify-content:space-between; padding: 14px 0;"><span>Joined</span><span id="profileJoinDate">...</span></div>
+                    <a href="#" id="logoutButton" class="primary-button" style="background: var(--danger-color); color: white; text-align: center; text-decoration: none; display: block;">Logout</a>
+                </div>
+            </div>
+
+            <!-- Task Page -->
+            <div id="taskPage" class="page">
+                <div class="card">
+                     <div class="card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1.5 14h-5v-2h5v2zm0-4h-5v-2h5v2zm-1-4H6V6h5.5v2.5z"/></svg>
+                        <h2>Tasks</h2>
+                    </div>
+                    <ul id="taskList"></ul>
+                </div>
+            </div>
+
+            <!-- Leaderboard Page -->
+            <div id="leaderboardPage" class="page">
+                <div class="card">
+                    <div class="card-header">
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11V3H8v8l-2.5-2.5L4 10l8 8 8-8-1.5-1.5L16 11zm4 10H4v-2h16v2z"/></svg>
+                        <h2>Leaderboard</h2>
+                    </div>
+                    <ol id="leaderboardList"></ol>
+                </div>
+            </div>
+
+            <!-- Swap Page -->
+            <div id="swapPage" class="page">
+                 <div class="card">
+                    <div class="card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                        <h2>Swap</h2>
+                    </div>
+                    <p style="text-align: center; color: var(--text-color-secondary); margin-bottom: 25px;">Available: <strong id="withdrawPointsAvailable" style="color: var(--text-color);">0</strong></p>
+                    <div class="form-group"><label for="withdrawAmount">Amount</label><input type="number" id="withdrawAmount" placeholder="1000"></div>
+                    <div class="form-group"><label for="withdrawMethod">Method</label><select id="withdrawMethod" style="-webkit-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill=\'%23b0bec5\' viewBox=\'0 0 16 16\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M8 11L3 6h10z\'/></svg>'); background-repeat: no-repeat; background-position: right 16px center; padding-right: 40px;"><option value="points_wallet">Points Wallet</option></select></div>
+                    <button id="submitWithdrawal" class="primary-button">Request Swap</button>
+                    <p id="withdrawMessage" style="text-align:center; display:none; margin-top:15px; font-weight: 500;"></p>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <nav id="bottomNav">
+            <button class="nav-button active" data-page="tapPage"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>Home</span></button>
+            <button class="nav-button" data-page="taskPage"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1.5 14h-5v-2h5v2zm0-4h-5v-2h5v2zm-1-4H6V6h5.5v2.5z"/></svg><span>Tasks</span></button>
+            <button class="nav-button" data-page="swapPage"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg><span>Swap</span></button>
+            <button class="nav-button" data-page="leaderboardPage"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 21h12V10H6v11zM10.5 3h3v5h-3V3zM3 13.5h3v5H3v-5zm15 0h3v5h-3v-5z"/></svg><span>Leaders</span></button>
+            <button class="nav-button" data-page="settingsPage"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61-.25-1.17-.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19-.15-.24-.42.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59-1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg><span>Settings</span></button>
+        </nav>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminContainer">
+        <div class="admin-container">
+            <div class="card">
+                <div class="card-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 11H6V9h6v4zm0 2v4.5c-2.32-.9-4-3.3-4-5.5h4z"/></svg>
+                    <h2>Advanced Admin Panel</h2>
+                </div>
+                 <div style="text-align: right; margin-bottom: 20px;"><a href="#" id="adminLogoutButton" style="color: var(--danger-color); text-decoration: none;">Logout</a></div>
+
+                <div class="tab-nav">
+                    <button class="tab-button active" data-tab="dashboard" title="Dashboard"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13,3V9H21V3M13,21H21V11H13M3,21H11V15H3M3,13H11V3H3V13Z"></path></svg></button>
+                    <button class="tab-button" data-tab="users" title="User Management"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 17V19H2V17S2 13 9 13S16 17 16 17M12.5 7.5A3.5 3.5 0 1 0 9 11A3.5 3.5 0 0 0 12.5 7.5M15.94 13A5.32 5.32 0 0 1 18 17V19H22V17S22 13.37 15.94 13M15 4.5A3.5 3.5 0 1 0 11.5 8A3.5 3.5 0 0 0 15 4.5Z"></path></svg></button>
+                    <button class="tab-button" data-tab="settings" title="Settings"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M10,22C9.75,22 9.54,21.82 9.5,21.58L9.13,18.5C8.5,18.25 7.92,17.93 7.37,17.59L4.5,18.67C4.29,18.75 4.03,18.67 3.89,18.47L2.11,15.53C1.97,15.33 2.05,15.07 2.22,14.93L4.67,13.07C4.64,12.72 4.63,12.37 4.63,12C4.63,11.63 4.64,11.28 4.67,10.93L2.22,9.07C2.05,8.93 1.97,8.67 2.11,8.47L3.89,5.53C4.03,5.33 4.29,5.25 4.5,5.33L7.37,6.41C7.92,6.07 8.5,5.75 9.13,5.5L9.5,2.42C9.54,2.18 9.75,2 10,2H14C14.25,2 14.46,2.18 14.5,2.42L14.87,5.5C15.5,5.75 16.08,6.07 16.63,6.41L19.5,5.33C19.71,5.25 19.97,5.33 20.11,5.53L21.89,8.47C22.03,8.67 21.95,8.93 21.78,9.07L19.33,10.93C19.36,11.28 19.37,11.63 19.37,12C19.37,12.37 19.36,12.72 19.33,13.07L21.78,14.93C21.95,15.07 22.03,15.33 21.89,15.53L20.11,18.47C19.97,18.67 19.71,18.75 19.5,18.67L16.63,17.59C16.08,17.93 15.5,18.25 14.87,18.5L14.5,21.58C14.46,21.82 14.25,22 14,22H10Z"></path></svg></button>
+                </div>
+
+                <div id="dashboardTab" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg><span class="stat-number" id="adminTotalUsers">0</span><span class="stat-label">Total Users</span></div>
+                        <div class="stat-card"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.05-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg><span class="stat-number" id="adminTotalPoints">0</span><span class="stat-label">Total Points</span></div>
+                        <div class="stat-card"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM12 6c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg><span class="stat-number" id="adminAvgPoints">0</span><span class="stat-label">Avg. Points</span></div>
+                    </div>
+                    <div class="chart-container"><h3>Top 5 Users by Points</h3><canvas id="userBarChart"></canvas></div>
+                    <div class="chart-container"><h3>Player Tiers (by Points)</h3><canvas id="pointsPieChart"></canvas></div>
+                </div>
+
+                <div id="usersTab" class="tab-content">
+                    <input type="text" id="userSearch" class="search-bar" placeholder="Search for a user..."><div class="user-table-wrapper"><table class="user-table"><thead><tr><th>#</th><th>Username</th><th>Points</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="userList"></tbody></table></div>
+                </div>
+
+                <div id="settingsTab" class="tab-content">
+                    <div class="settings-section"><h3>Advanced Settings</h3><p>Permanently remove all users and game data. This action cannot be undone.</p><button id="wipeDataButton">Wipe All Game Data</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Daily Reward Modal -->
+    <div id="modalOverlay">
+        <div class="modal-content">
+            <h2>Daily Reward</h2>
+            <p id="rewardMessage">Claim your daily reward of 1,000 points!</p>
+            <button id="claimRewardButton" class="primary-button">Claim</button>
+            <button id="closeModalButton" class="primary-button" style="background:var(--disabled-color); margin-top:10px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Firebase Configuration ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyCeRBNcXUJVjnTAlXxAxxiDTpeZZWD2SWk",
+                authDomain: "points-12099.firebaseapp.com",
+                databaseURL: "https://points-12099-default-rtdb.firebaseio.com",
+                projectId: "points-12099",
+                storageBucket: "points-12099.firebasestorage.app",
+                messagingSenderId: "814514113277",
+                appId: "1:814514113277:web:2ff6a48e21daf8bd7c8c94"
+            };
+
+            // --- Initialize Firebase ---
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const database = firebase.database();
+
+            // --- DOM Elements ---
+            const authContainer = document.getElementById('authContainer');
+            const appContainer = document.getElementById('app');
+            const adminContainer = document.getElementById('adminContainer');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const showRegisterLink = document.getElementById('showRegister');
+            const showLoginLink = document.getElementById('showLogin');
+            const loginMessage = document.getElementById('loginMessage');
+            const registerMessage = document.getElementById('registerMessage');
+            const logoutButton = document.getElementById('logoutButton');
+            const adminLogoutButton = document.getElementById('adminLogoutButton');
+            const pages = document.querySelectorAll('#app .page');
+            const navButtons = document.querySelectorAll('.nav-button');
+            const pointsDisplay = document.getElementById('pointsDisplay');
+            const coinButton = document.getElementById('coinButton');
+            const energyLevel = document.getElementById('energyLevel');
+            const energyBar = document.getElementById('energyBar');
+            const profilePoints = document.getElementById('profilePoints');
+            const profileName = document.getElementById('profileName');
+            const profileUserId = document.getElementById('profileUserId');
+            const profileJoinDate = document.getElementById('profileJoinDate');
+            const leaderboardList = document.getElementById('leaderboardList');
+            const taskList = document.getElementById('taskList');
+            const withdrawPointsAvailable = document.getElementById('withdrawPointsAvailable');
+            const withdrawAmountInput = document.getElementById('withdrawAmount');
+            const submitWithdrawalButton = document.getElementById('submitWithdrawal');
+            const withdrawMessage = document.getElementById('withdrawMessage');
+            const rewardsButton = document.getElementById('rewardsButton');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const claimRewardButton = document.getElementById('claimRewardButton');
+            const closeModalButton = document.getElementById('closeModalButton');
+            const rewardMessage = document.getElementById('rewardMessage');
+
+            // --- Game State & Config ---
+            const MAX_ENERGY = 1000;
+            const ENERGY_REFILL_RATE = 2;
+            const ENERGY_PER_TAP = 1;
+            const POINTS_PER_TAP = 1;
+            const DAILY_REWARD_AMOUNT = 1000;
+            const TASK_REWARD = 100;
+            const TASKS = [ { id: 0, title: "Subscribe to YouTube" }, { id: 1, title: "Follow on Twitter" }, { id: 2, title: "Follow on Instagram" } ];
+
+            let currentUser = null;
+            let userData = {};
+
+            // --- Core Functions ---
+            function init() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                setupAuthListeners();
+                checkLoginState();
+                setupAdminPanelListeners();
+            }
+
+            function startApp(user) {
+                authContainer.style.display = 'none';
+                if (user.email.split('@')[0] === 'admin') {
+                    adminContainer.style.display = 'flex';
+                    renderAdminDashboard();
+                } else {
+                    appContainer.style.display = 'flex';
+                    updateAllDisplays();
+                    showPage('tapPage');
+                    setupAppEventListeners();
+                    setInterval(refillEnergy, 1000);
+                    checkDailyRewardStatus();
+                }
+            }
+
+            function handleLogout() {
+                auth.signOut().then(() => {
+                    currentUser = null;
+                    userData = {};
+                    appContainer.style.display = 'none';
+                    adminContainer.style.display = 'none';
+                    authContainer.style.display = 'flex';
+                    showAuthPage('loginPage');
+                    loginForm.reset();
+                    registerForm.reset();
+                    loginMessage.textContent = '';
+                    registerMessage.textContent = '';
+                });
+            }
+
+            // --- Data & Auth ---
+            function checkLoginState() {
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        currentUser = user;
+                        loadData(currentUser.uid);
+                    } else {
+                        showAuthPage('loginPage');
+                    }
+                });
+            }
+
+            function showAuthPage(pageId) {
+                authContainer.querySelectorAll('.auth-page').forEach(p => p.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+            }
+
+            function handleLogin(e) {
+                e.preventDefault();
+                const email = loginForm.querySelector('input[type="text"]').value.trim() + '@tapswap.game';
+                const password = loginForm.querySelector('input[type="password"]').value;
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => {
+                        loginMessage.textContent = error.message;
+                    });
+            }
+
+            function handleRegister(e) {
+                e.preventDefault();
+                const username = registerForm.querySelector('input[type="text"]').value.trim();
+                const password = registerForm.querySelector('input[type="password"]').value;
+                if (!username || !password || username.length < 3) {
+                    registerMessage.textContent = "Username must be at least 3 characters.";
+                    return;
+                }
+                const email = username + '@tapswap.game';
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then(userCredential => {
+                        const user = userCredential.user;
+                        const initialGameData = {
+                            username: username,
+                            points: 0,
+                            energy: MAX_ENERGY,
+                            maxEnergy: MAX_ENERGY,
+                            lastEnergyUpdate: Date.now(),
+                            joinDate: new Date().toISOString(),
+                            tasks: TASKS.map(t => ({id: t.id, completed: false})),
+                            lastRewardClaim: 0
+                        };
+                        database.ref('users/' + user.uid).set(initialGameData);
+                        alert("Registration successful! Please login.");
+                        registerForm.reset();
+                        showAuthPage('loginPage');
+                    })
+                    .catch(error => {
+                        registerMessage.textContent = error.message;
+                    });
+            }
+
+            function loadData(userId) {
+                database.ref('users/' + userId).once('value').then(snapshot => {
+                    userData = snapshot.val();
+                    if (userData) {
+                        startApp(currentUser);
+                    }
+                });
+            }
+
+            function saveData() {
+                if (!currentUser) return;
+                database.ref('users/' + currentUser.uid).set(userData);
+            }
+
+            // --- UI & Navigation ---
+            function updateAllDisplays() {
+                const formattedPoints = Math.floor(userData.points).toLocaleString('en-US');
+                pointsDisplay.textContent = formattedPoints;
+                profilePoints.textContent = formattedPoints;
+                withdrawPointsAvailable.textContent = formattedPoints;
+                updateEnergyDisplay();
+                displayProfileInfo();
+            }
+
+            function updateEnergyDisplay() {
+                 const currentEnergy = Math.floor(userData.energy);
+                 energyLevel.textContent = `⚡ ${currentEnergy.toLocaleString()}`;
+                 energyBar.style.width = `${(currentEnergy / userData.maxEnergy) * 100}%`;
+            }
+
+            function displayProfileInfo() {
+                profileName.textContent = userData.username;
+                profileUserId.textContent = currentUser.uid.substring(0, 8);
+                profileJoinDate.textContent = new Date(userData.joinDate).toLocaleDateString();
+            }
+
+            function showPage(pageId) {
+                pages.forEach(p => p.classList.toggle('active', p.id === pageId));
+                navButtons.forEach(b => b.classList.toggle('active', b.dataset.page === pageId));
+                document.getElementById('content').scrollTop = 0;
+                if (pageId === 'leaderboardPage') renderLeaderboard();
+                if (pageId === 'taskPage') renderTasks();
+            }
+
+            // --- Page Logic ---
+            function renderTasks() {
+                taskList.innerHTML = '';
+                TASKS.forEach(taskInfo => {
+                    const userTask = userData.tasks.find(t => t.id === taskInfo.id);
+                    const li = document.createElement('li');
+                    li.className = 'task-item';
+                    li.innerHTML = `<span style="flex-grow:1;">${taskInfo.title} <span>+${TASK_REWARD}</span></span><button class="primary-button task-button" data-task-id="${taskInfo.id}" ${userTask.completed ? 'disabled' : ''}>${userTask.completed ? 'Claimed' : 'Claim'}</button>`;
+                    if (!userTask.completed) li.querySelector('button').addEventListener('click', (e) => completeTask(e.target.dataset.taskId));
+                    taskList.appendChild(li);
+                });
+            }
+
+            function completeTask(taskId) {
+                const task = userData.tasks.find(t => t.id == taskId);
+                if (task && !task.completed) {
+                    task.completed = true;
+                    userData.points += TASK_REWARD;
+                    saveData();
+                    updateAllDisplays();
+                    renderTasks();
+                }
+            }
+
+            function renderLeaderboard() {
+                database.ref('users').orderByChild('points').limitToLast(50).once('value', snapshot => {
+                    const users = [];
+                    snapshot.forEach(childSnapshot => {
+                        users.push({
+                            username: childSnapshot.val().username,
+                            points: childSnapshot.val().points
+                        });
+                    });
+                    const sortedUsers = users.sort((a, b) => b.points - a.points);
+                    leaderboardList.innerHTML = '';
+                    sortedUsers.forEach((user, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'leaderboard-item';
+                        if (user.username === userData.username) li.classList.add('is-user');
+                        li.innerHTML = `<span class="leaderboard-rank">${index + 1}</span><span class="leaderboard-name">${user.username}</span><span class="leaderboard-points">${user.points.toLocaleString()}</span>`;
+                        leaderboardList.appendChild(li);
+                    });
+                });
+            }
+
+            function handleWithdraw() {
+                const amount = parseInt(withdrawAmountInput.value);
+                withdrawMessage.style.display = 'block';
+                if (isNaN(amount) || amount <= 0) {
+                    withdrawMessage.textContent = 'Invalid amount.';
+                    withdrawMessage.style.color = 'var(--danger-color)';
+                    return;
+                }
+                if (amount > userData.points) {
+                    withdrawMessage.textContent = 'Insufficient points.';
+                    withdrawMessage.style.color = 'var(--danger-color)';
+                    return;
+                }
+                userData.points -= amount;
+                saveData();
+                updateAllDisplays();
+                withdrawMessage.textContent = `Swap successful!`;
+                withdrawMessage.style.color = 'var(--success-color)';
+                withdrawAmountInput.value = '';
+            }
+
+            // --- Daily Reward ---
+            function checkDailyRewardStatus() {
+                const now = Date.now();
+                const lastClaim = userData.lastRewardClaim || 0;
+                const twentyFourHours = 24 * 60 * 60 * 1000;
+                if (now - lastClaim > twentyFourHours) {
+                    rewardsButton.classList.add('ready');
+                    claimRewardButton.disabled = false;
+                    rewardMessage.textContent = `Claim your daily reward of ${DAILY_REWARD_AMOUNT.toLocaleString()} points!`;
+                } else {
+                    rewardsButton.classList.remove('ready');
+                    claimRewardButton.disabled = true;
+                    const timeLeft = twentyFourHours - (now - lastClaim);
+                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    rewardMessage.textContent = `Next reward in ${hours}h ${minutes}m.`;
+                }
+            }
+
+            function claimDailyReward() {
+                userData.points += DAILY_REWARD_AMOUNT;
+                userData.lastRewardClaim = Date.now();
+                saveData();
+                updateAllDisplays();
+                checkDailyRewardStatus();
+                modalOverlay.classList.remove('visible');
+            }
+
+            // --- Game Logic ---
+            function handleTap(event) {
+                if (userData.energy >= ENERGY_PER_TAP) {
+                    userData.points += POINTS_PER_TAP;
+                    userData.energy -= ENERGY_PER_TAP;
+                    userData.lastEnergyUpdate = Date.now();
+                    updateAllDisplays();
+                    const text = document.createElement('span');
+                    text.innerHTML = `+${POINTS_PER_TAP}`;
+                    text.className = 'plus-one-animation';
+                    document.body.appendChild(text);
+                    text.style.left = `${event.clientX - text.offsetWidth / 2}px`;
+                    text.style.top = `${event.clientY - text.offsetHeight / 2}px`;
+                    setTimeout(() => text.remove(), 1500);
+                    clearTimeout(window.saveTimeout);
+                    window.saveTimeout = setTimeout(saveData, 500);
+                }
+            }
+
+            function refillEnergy() {
+                if(!currentUser || userData.energy >= userData.maxEnergy) return;
+                const now = Date.now();
+                const timeElapsed = (now - (userData.lastEnergyUpdate || now)) / 1000;
+                userData.energy = Math.min(userData.maxEnergy, userData.energy + timeElapsed * ENERGY_REFILL_RATE);
+                userData.lastEnergyUpdate = now;
+                updateEnergyDisplay();
+            }
+
+            // --- Event Listeners ---
+            function setupAuthListeners() {
+                showRegisterLink.addEventListener('click', () => showAuthPage('registerPage'));
+                showLoginLink.addEventListener('click', () => showAuthPage('loginPage'));
+                loginForm.addEventListener('submit', handleLogin);
+                registerForm.addEventListener('submit', handleRegister);
+                logoutButton.addEventListener('click', handleLogout);
+                adminLogoutButton.addEventListener('click', handleLogout);
+            }
+
+            function setupAppEventListeners() {
+                navButtons.forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+                submitWithdrawalButton.addEventListener('click', handleWithdraw);
+                coinButton.addEventListener('pointerdown', handleTap);
+                document.querySelector('.tap-button').addEventListener('click', e => coinButton.dispatchEvent(new PointerEvent('pointerdown', {clientX: e.clientX, clientY: e.clientY})));
+                rewardsButton.addEventListener('click', () => {
+                    checkDailyRewardStatus();
+                    modalOverlay.classList.add('visible');
+                });
+                closeModalButton.addEventListener('click', () => modalOverlay.classList.remove('visible'));
+                claimRewardButton.addEventListener('click', claimDailyReward);
+            }
+
+            // --- Admin Panel Logic ---
+            let userChartInstance = null;
+            let pointsChartInstance = null;
+
+            function setupAdminPanelListeners() {
+                const tabButtons = document.querySelectorAll('.tab-button');
+                const tabContents = document.querySelectorAll('.tab-content');
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        const tabId = button.dataset.tab;
+                        tabContents.forEach(content => content.classList.toggle('active', content.id === `${tabId}Tab`));
+                        if (tabId === 'dashboard') renderAdminDashboard();
+                        if (tabId === 'users') renderUserManagement();
+                    });
+                });
+
+                document.getElementById('userSearch').addEventListener('input', (e) => renderUserManagement(e.target.value));
+
+                document.getElementById('userList').addEventListener('click', (e) => {
+                    const userId = e.target.dataset.userId;
+                    if (!userId) return;
+                    if (e.target.classList.contains('reset-btn') && confirm(`Reset points for this user to 0?`)) {
+                        database.ref('users/' + userId + '/points').set(0);
+                        renderAdminAll();
+                    }
+                    if (e.target.classList.contains('delete-btn') && confirm(`Permanently delete this user? This cannot be undone.`)) {
+                        database.ref('users/' + userId).remove();
+                        renderAdminAll();
+                    }
+                });
+
+                document.getElementById('wipeDataButton').addEventListener('click', () => {
+                    if (prompt('To confirm, type "DELETE" in all caps.') === 'DELETE' && confirm('Final warning: Wipe all game data?')) {
+                        database.ref('users').remove();
+                        alert('All game data has been wiped.');
+                        renderAdminAll();
+                    } else {
+                        alert('Action canceled.');
+                    }
+                });
+            }
+
+            function renderAdminAll() {
+                renderAdminDashboard();
+                renderUserManagement();
+            }
+
+            function renderAdminDashboard() {
+                database.ref('users').once('value', snapshot => {
+                    const usersData = snapshot.val();
+                    if (!usersData) return;
+                    const users = Object.values(usersData);
+                    const totalUsers = users.length;
+                    const totalPoints = users.reduce((sum, user) => sum + (user.points || 0), 0);
+                    const avgPoints = totalUsers > 0 ? Math.round(totalPoints / totalUsers) : 0;
+
+                    document.getElementById('adminTotalUsers').textContent = totalUsers.toLocaleString();
+                    document.getElementById('adminTotalPoints').textContent = totalPoints.toLocaleString();
+                    document.getElementById('adminAvgPoints').textContent = avgPoints.toLocaleString();
+
+                    const sortedUsers = users.sort((a, b) => b.points - a.points).slice(0, 5);
+                    const tiers = { 'Newbie (<1k)': 0, 'Player (1-5k)': 0, 'Pro (5-10k)': 0, 'Master (10k+)': 0 };
+                    users.forEach(user => {
+                        if (user.points >= 10000) tiers['Master (10k+)']++;
+                        else if (user.points >= 5000) tiers['Pro (5-10k)']++;
+                        else if (user.points >= 1000) tiers['Player (1-5k)']++;
+                        else tiers['Newbie (<1k)']++;
+                    });
+
+                    renderUserBarChart(sortedUsers.map(u => u.username), sortedUsers.map(u => u.points));
+                    renderPointsPieChart(Object.keys(tiers), Object.values(tiers));
+                });
+            }
+
+            function renderUserManagement(filter = '') {
+                database.ref('users').orderByChild('points').once('value', snapshot => {
+                    const userListBody = document.getElementById('userList');
+                    userListBody.innerHTML = '';
+                    let rank = 1;
+                    const users = [];
+                    snapshot.forEach(childSnapshot => {
+                        users.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                    });
+                    const sortedUsers = users.sort((a, b) => b.points - a.points);
+
+                    sortedUsers.forEach(user => {
+                        if (filter && !user.username.toLowerCase().includes(filter.toLowerCase())) return;
+                        const joinDate = new Date(user.joinDate).toLocaleDateString();
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${rank++}</td><td>${user.username}</td><td>${(user.points || 0).toLocaleString()}</td><td>${joinDate}</td><td><button class="action-button reset-btn" data-user-id="${user.id}">Reset</button><button class="action-button delete delete-btn" data-user-id="${user.id}">Delete</button></td>`;
+                        userListBody.appendChild(tr);
+                    });
+                });
+            }
+
+            function renderUserBarChart(labels, data) {
+                const ctx = document.getElementById('userBarChart').getContext('2d');
+                if (userChartInstance) userChartInstance.destroy();
+                userChartInstance = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Points', data, backgroundColor: 'rgba(0, 229, 255, 0.6)', borderColor: 'rgba(0, 229, 255, 1)', borderWidth: 1 }] }, options: { scales: { y: { beginAtZero: true, ticks: { color: 'white' } }, x: { ticks: { color: 'white' } } }, plugins: { legend: { display: false } } } });
+            }
+
+            function renderPointsPieChart(labels, data) {
+                const ctx = document.getElementById('pointsPieChart').getContext('2d');
+                if (pointsChartInstance) pointsChartInstance.destroy();
+                pointsChartInstance = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data, backgroundColor: ['#00838f', '#00b8d4', '#00e5ff', '#84ffff'], borderColor: '#0d1a3a', hoverOffset: 4 }] }, options: { plugins: { legend: { position: 'top', labels: { color: 'white' } } } } });
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
