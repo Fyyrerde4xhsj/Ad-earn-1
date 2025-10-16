@@ -484,20 +484,6 @@ async function showAd(taskType) {
             } else {
                 showAlert('Share feature not available on this browser.');
             }
-        }
-        
-        async function updateBalance(amount, type, description) { if (!currentUser || amount === 0) return; const newBalance = (userData.balance || 0) + amount; await updateDoc(doc(db, "users", currentUser.uid), { balance: newBalance }); await logTransaction(amount, type, description); userData.balance = newBalance; updateAllUI(); }
-        async function logTransaction(amount, type, description = '') { const txRef = collection(db, "users", currentUser.uid, "transactions"); await addDoc(txRef, { amount: amount, type: type, description: description, timestamp: serverTimestamp() }); }
-        async function resetDailyTasksIfNeeded() {
-            const today = new Date().toISOString().split('T')[0];
-            let updates = {};
-            if (userData.lastAdWatchDate !== today) {
-                updates.lastAdWatchDate = today;
-                updates.dailyAdCount = 0;
-            }
-            if (Object.keys(updates).length > 0) {
-                await updateDoc(doc(db, "users", currentUser.uid), updates);
-                userData = { ...userData, ...updates };
             }
         }
         
@@ -514,7 +500,7 @@ async function showAd(taskType) {
                     }
                 } else {
                     console.error("Monetag SDK function not found.");
-                    reject("Ads are not available right now. Please try again later.");
+
                 }
             });
         }
@@ -600,6 +586,7 @@ async function showAd(taskType) {
     </script>
 </body>
 </html>
+
 
 
 
