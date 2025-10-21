@@ -831,14 +831,7 @@
             const websites = appConfig.websitesToVisit || [];
             if (websites.length === 0) { listEl.innerHTML = `<p class="text-center text-gray-400">No tasks available right now.</p>`; return; }
             websites.forEach(site => { 
-                const isVisited = userData.visitedWebsitesToday?.includes(site.link); 
-                listEl.innerHTML += `<div class="card-bg p-4 rounded-lg flex justify-between items-center"><div class="flex items-center"><i data-lucide="globe" class="w-8 h-8 mr-4 text-yellow-400"></i><div><h3 class="font-semibold">${site.name}</h3><p class="text-sm text-yellow-400">Get ${site.reward} Coins</p></div></div><button data-link="${site.link}" data-reward="${site.reward}" data-timer="${site.timer}" class="visit-btn ${isVisited ? 'bg-gray-500' : 'btn-accent'} px-4 py-2 text-sm rounded-full" ${isVisited ? 'disabled' : ''}>${isVisited ? 'Visited' : 'Visit'}</button></div>`; 
-            });
-            lucide.createIcons();
-            document.querySelectorAll('.visit-btn:not([disabled])').forEach(btn => btn.addEventListener('click', handleWebsiteVisit));
-        }
-
-        async function handleWebsiteVisit(e) {
+                const isVisited = userData.visitedWebsitesToday?.includes(site.liasync function handleWebsiteVisit(e) {
   const button = e.target.closest("button");
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
@@ -848,17 +841,15 @@
   loader.style.display = "flex";
 
   try {
-    await showAd(); // optional ad before visit
+    await showAd();
     loader.style.display = "none";
 
-    // Open the website in a new tab
     const newTab = window.open(link, "_blank");
     if (!newTab) {
       button.disabled = false;
       return showAlert("Please allow popups to continue.");
     }
 
-    // Wait for user to stay on that tab for required time
     button.textContent = `Wait ${timer}s`;
     let seconds = timer;
 
@@ -871,7 +862,6 @@
       clearInterval(interval);
       button.textContent = "Verifying...";
 
-      // Check if tab is still open
       if (newTab.closed) {
         button.disabled = false;
         button.textContent = "Visit Again";
@@ -880,8 +870,8 @@
 
       newTab.close();
 
-      // Now reward because verification passed
       await updateBalance(reward, "Website Visit", `Verified ${link}`);
+
       const visited = [...(userData.visitedWebsitesToday || []), link];
       await updateDoc(doc(db, "users", currentUser.uid), { visitedWebsitesToday: visited });
       userData.visitedWebsitesToday = visited;
@@ -898,6 +888,14 @@
     loader.style.display = "none";
   }
 }
+nk); 
+                listEl.innerHTML += `<div class="card-bg p-4 rounded-lg flex justify-between items-center"><div class="flex items-center"><i data-lucide="globe" class="w-8 h-8 mr-4 text-yellow-400"></i><div><h3 class="font-semibold">${site.name}</h3><p class="text-sm text-yellow-400">Get ${site.reward} Coins</p></div></div><button data-link="${site.link}" data-reward="${site.reward}" data-timer="${site.timer}" class="visit-btn ${isVisited ? 'bg-gray-500' : 'btn-accent'} px-4 py-2 text-sm rounded-full" ${isVisited ? 'disabled' : ''}>${isVisited ? 'Visited' : 'Visit'}</button></div>`; 
+            });
+            lucide.createIcons();
+            document.querySelectorAll('.visit-btn:not([disabled])').forEach(btn => btn.addEventListener('click', handleWebsiteVisit));
+        }
+
+        
         ,1000); 
             } catch (error) { 
                 showAlert(error.toString()); 
@@ -965,5 +963,6 @@
 </body>
 
 </html>
+
 
 
