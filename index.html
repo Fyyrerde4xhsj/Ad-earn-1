@@ -477,17 +477,33 @@
         }
         
         async function resetDailyTasksIfNeeded() {
-            const today = new Date().toISOString().split('T')[0];
-            let updates = {};
-            if (userData.lastAdWatchDate !== today) {
-                updates.lastAdWatchDate = today;
-                updates.dailyAdCount = 0;
-            }
-            if (Object.keys(updates).length > 0) {
-                await updateDoc(doc(db, "users", currentUser.uid), updates);
-                userData = { ...userData, ...updates };
-            }
-        }
+  const today = new Date().toISOString().split('T')[0];
+  let updates = {};
+
+  // Reset daily ad count
+  if (userData.lastAdWatchDate !== today) {
+    updates.lastAdWatchDate = today;
+    updates.dailyAdCount = 0;
+  }
+
+  // Reset visited site tasks daily
+  if (userData.lastWebsiteVisitDate !== today) {
+    updates.lastWebsiteVisitDate = today;
+    updates.visitedWebsitesToday = [];
+  }
+
+  // Reset social tasks if needed (optional)
+  if (userData.lastSocialTaskDate !== today) {
+    updates.lastSocialTaskDate = today;
+    updates.completedSocialTasks = [];
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await updateDoc(doc(db, "users", currentUser.uid), updates);
+    userData = { ...userData, ...updates };
+  }
+}
+
         
         async function showAd() {
             return new Promise((resolve, reject) => {
@@ -912,4 +928,5 @@
         }
     </script>
 </body>
+
 </html>
