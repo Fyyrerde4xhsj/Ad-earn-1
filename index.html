@@ -838,32 +838,67 @@
             document.querySelectorAll('.visit-btn:not([disabled])').forEach(btn => btn.addEventListener('click', handleWebsiteVisit));
         }
 
-        async function handleWebsiteVisit(e) { 
-            const button = e.target.closest('button'); 
-            const { link, reward, timer } = button.dataset; 
-            button.disabled = true; 
-            loader.style.display = 'flex'; 
-            try { 
-                await showAd(); 
-                loader.style.display = 'none'; 
-                window.open(link, '_blank'); 
-                let seconds = parseInt(timer); 
-                button.textContent = `Wait ${seconds}s`; 
-                const interval = setInterval(async () => { 
-                    seconds--; 
-                    button.textContent = `Wait ${seconds}s`; 
-                    if (seconds <= 0) { 
-                        clearInterval(interval); 
-                        await updateBalance(parseInt(reward), 'Website Visit', `Visited ${link}`); 
-                        const visited = [...(userData.visitedWebsitesToday || []), link]; 
-                        await updateDoc(doc(db, "users", currentUser.uid), { visitedWebsitesToday: visited }); 
-                        userData.visitedWebsitesToday = visited; 
-                        showAlert(`Congratulations! You earned ${reward} coins for visiting the site.`); 
-                        button.textContent = 'Visited'; 
-                        button.classList.remove('btn-accent'); 
-                        button.classList.add('bg-gray-500'); 
-                    } 
-                }, 1000); 
+        async function handleWebsiteVisit(e) {
+  const button = e.target.closest("button");
+  const link = button.dataset.link;
+  const reward = parseInt(button.dataset.reward);
+  const timer = parseInt(button.dataset.timer);
+
+  button.disabled = true;
+  loader.style.display = "flex";
+
+  try {
+    await showAd(); // optional ad before visit
+    loader.style.display = "none";
+
+    // Open the website in a new tab
+    const newTab = window.open(link, "_blank");
+    if (!newTab) {
+      button.disabled = false;
+      return showAlert("Please allow popups to continue.");
+    }
+
+    // Wait for user to stay on that tab for required time
+    button.textContent = `Wait ${timer}s`;
+    let seconds = timer;
+
+    const interval = setInterval(() => {
+      seconds--;
+      button.textContent = `Wait ${seconds}s`;
+    }, 1000);
+
+    setTimeout(async () => {
+      clearInterval(interval);
+      button.textContent = "Verifying...";
+
+      // Check if tab is still open
+      if (newTab.closed) {
+        button.disabled = false;
+        button.textContent = "Visit Again";
+        return showAlert("You must stay on the site for the full timer to earn coins.");
+      }
+
+      newTab.close();
+
+      // Now reward because verification passed
+      await updateBalance(reward, "Website Visit", `Verified ${link}`);
+      const visited = [...(userData.visitedWebsitesToday || []), link];
+      await updateDoc(doc(db, "users", currentUser.uid), { visitedWebsitesToday: visited });
+      userData.visitedWebsitesToday = visited;
+
+      button.textContent = "Visited";
+      button.classList.remove("btn-accent");
+      button.classList.add("bg-gray-500");
+
+      showAlert(`Congratulations! You earned ${reward} coins for visiting.`);
+    }, timer * 1000);
+  } catch (error) {
+    showAlert(error.toString());
+    button.disabled = false;
+    loader.style.display = "none";
+  }
+}
+, 1000); 
             } catch (error) { 
                 showAlert(error.toString()); 
                 button.disabled = false; 
@@ -930,3 +965,4 @@
 </body>
 
 </html>
+
