@@ -383,48 +383,83 @@
             }
         }
         
-        function showAdClickTask() {
-            const popup = document.getElementById('ad-click-task-popup');
-            const adStatus = popup.querySelector('#ad-click-status');
-            const showAdBtn = popup.querySelector('#show-ad-click-btn');
-            showAdBtn.classList.add('hidden');
-            adStatus.textContent = "Waiting for you to click on the ad...";
+        async function showAdClickTaskWithLimit() {
+  const popup = document.getElementById("ad-click-task-popup");
+  const adStatus = popup.querySelector("#ad-click-status");
+  const showAdBtn = popup.querySelector("#show-ad-click-btn");
 
-            showAd().catch(err => {
-                showAlert(err);
-                showAdBtn.classList.remove('hidden');
-                adStatus.textContent = "";
-            });
+  const today = new Date().toISOString().split("T")[0];
 
-            let clickCheckTimeout;
-            const onBlur = () => {
-                window.removeEventListener('blur', onBlur);
-                clearTimeout(clickCheckTimeout);
-                adStatus.textContent = "Click successful! Now waiting...";
-                popup.querySelector('#ad-click-timer-container').classList.remove('hidden');
-                
-                let seconds = appConfig.watchAdSpecialTaskTimer || 30;
-                const timerEl = popup.querySelector('#ad-click-timer');
-                timerEl.textContent = seconds;
+  // Reset daily count if new day
+  if (userData.lastAdClickDate !== today) {
+    userData.dailyAdClickCount = 0;
+    userData.lastAdClickDate = today;
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      dailyAdClickCount: 0,
+      lastAdClickDate: today,
+    });
+  }
 
-                const interval = setInterval(() => {
-                    seconds--;
-                    timerEl.textContent = seconds;
-                    if (seconds <= 0) {
-                        clearInterval(interval);
-                        popup.querySelector('#ad-click-timer-container').classList.add('hidden');
-                        popup.querySelector('#claim-ad-click-final-btn').classList.remove('hidden');
-                        adStatus.textContent = "You can now claim your bonus!";
-                    }
-                }, 1000);
-            };
-            window.addEventListener('blur', onBlur);
-            clickCheckTimeout = setTimeout(() => {
-                window.removeEventListener('blur', onBlur);
-                adStatus.textContent = "You didn't click the ad. Try again.";
-                showAdBtn.classList.remove('hidden');
-            }, 15000);
-        }
+  // Check limit
+  if (userData.dailyAdClickCount >= 10) {
+    showAlert("You have reached the daily limit of 10 ad click tasks. Please try again tomorrow.");
+    return;
+  }
+
+  // Normal UI logic...
+  showAdBtn.classList.add("hidden");
+  adStatus.textContent = "Waiting for you to click on the ad...";
+
+  showAd()
+    .catch(err => {
+      showAlert(err);
+      showAdBtn.classList.remove("hidden");
+      adStatus.textContent = "";
+    });
+
+  let clickCheckTimeout;
+
+  const onBlur = () => {
+    window.removeEventListener("blur", onBlur);
+    clearTimeout(clickCheckTimeout);
+    adStatus.textContent = "Click successful! Now waiting...";
+    popup.querySelector("#ad-click-timer-container").classList.remove("hidden");
+
+    let seconds = appConfig.watchAdSpecialTaskTimer;
+    const timerEl = popup.querySelector("#ad-click-timer");
+    timerEl.textContent = seconds;
+
+    const interval = setInterval(() => {
+      seconds--;
+      timerEl.textContent = seconds;
+      if (seconds === 0) {
+        clearInterval(interval);
+        popup.querySelector("#ad-click-timer-container").classList.add("hidden");
+        popup.querySelector("#claim-ad-click-final-btn").classList.remove("hidden");
+        adStatus.textContent = "You can now claim your bonus!";
+      }
+    }, 1000);
+  };
+
+  window.addEventListener("blur", onBlur);
+
+  clickCheckTimeout = setTimeout(() => {
+    window.removeEventListener("blur", onBlur);
+    adStatus.textContent = "You didn't click the ad. Try again.";
+    showAdBtn.classList.remove("hidden");
+  }, 15000);
+
+  popup.classList.remove("hidden");
+
+  // Increment count when user claims bonus (implement in your claim button handler)
+  popup.querySelector("#claim-ad-click-final-btn").onclick = async () => {
+    userData.dailyAdClickCount++;
+    await updateDoc(doc(db, "users", currentUser.uid), { dailyAdClickCount: userData.dailyAdClickCount });
+    // add your bonus reward code here
+    popup.classList.add("hidden");
+  };
+}
+
 
         async function finalizeAdClickTask() {
             const popup = document.getElementById('ad-click-task-popup');
@@ -958,5 +993,6 @@
 </body>
 
 </html>
+
 
 
