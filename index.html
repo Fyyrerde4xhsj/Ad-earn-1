@@ -842,23 +842,22 @@
   const button = e.target.closest("button");
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
-  const timer = parseInt(button.dataset.timer);
+  // Set timer to 60 seconds for 1 minute
+  const timer = 60;
 
   button.disabled = true;
   loader.style.display = "flex";
 
   try {
-    await showAd(); // optional ad before visit
+    await showAd();
     loader.style.display = "none";
 
-    // Open the website in a new tab
     const newTab = window.open(link, "_blank");
     if (!newTab) {
       button.disabled = false;
       return showAlert("Please allow popups to continue.");
     }
 
-    // Wait for user to stay on that tab for required time
     button.textContent = `Wait ${timer}s`;
     let seconds = timer;
 
@@ -871,7 +870,6 @@
       clearInterval(interval);
       button.textContent = "Verifying...";
 
-      // Check if tab is still open
       if (newTab.closed) {
         button.disabled = false;
         button.textContent = "Visit Again";
@@ -880,8 +878,8 @@
 
       newTab.close();
 
-      // Now reward because verification passed
       await updateBalance(reward, "Website Visit", `Verified ${link}`);
+
       const visited = [...(userData.visitedWebsitesToday || []), link];
       await updateDoc(doc(db, "users", currentUser.uid), { visitedWebsitesToday: visited });
       userData.visitedWebsitesToday = visited;
@@ -898,6 +896,7 @@
     loader.style.display = "none";
   }
 }
+
 
         
         function populateSocialTasks() {
@@ -959,4 +958,5 @@
 </body>
 
 </html>
+
 
