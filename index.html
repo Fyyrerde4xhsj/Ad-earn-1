@@ -842,8 +842,8 @@
   const button = e.target.closest("button");
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
-  // Set timer to 50 seconds 
-  const timer = 50;
+  // Set timer to 60 seconds 
+  const timer = 60;
 
   button.disabled = true;
   loader.style.display = "flex";
@@ -870,11 +870,12 @@
       clearInterval(interval);
       button.textContent = "Verifying...";
 
-      if (newTab.closed) {
-        button.disabled = false;
-        button.textContent = "Visit Again";
-        return showAlert("You must stay on the site for the full timer to earn coins.");
-      }
+      // if (newTab.closed) {
+//   button.disabled = false;
+//   button.textContent = "Visit Again";
+//   return showAlert("You must stay on the site for the full timer to earn coins.");
+// }
+
 
       newTab.close();
 
@@ -958,6 +959,7 @@
 </body>
 
 </html>
+
 
 
 
