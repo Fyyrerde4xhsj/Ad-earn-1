@@ -870,78 +870,85 @@ await updateDoc(doc(db, "users", currentUser.uid), {
                 setTimeout(() => { showAlert("Wrong Answer! Please try again."); window.startGame(); }, 1000); 
             } 
         }
+
         
         function populateWebsiteList() {
-            const listEl = document.getElementById('website-list');
-            listEl.innerHTML = '';
-            const websites = appConfig.websitesToVisit || [];
-            if (websites.length === 0) { listEl.innerHTML = `<p class="text-center text-gray-400">No tasks available right now.</p>`; return; }
-            websites.forEach(site => { 
-                const isVisited = userData.visitedWebsitesToday?.includes(site.link); 
-                listEl.innerHTML += `<div class="card-bg p-4 rounded-lg flex justify-between items-center"><div class="flex items-center"><i data-lucide="globe" class="w-8 h-8 mr-4 text-yellow-400"></i><div><h3 class="font-semibold">${site.name}</h3><p class="text-sm text-yellow-400">Get ${site.reward} Coins</p></div></div><button data-link="${site.link}" data-reward="${site.reward}" data-timer="${site.timer}" class="visit-btn ${isVisited ? 'bg-gray-500' : 'btn-accent'} px-4 py-2 text-sm rounded-full" ${isVisited ? 'disabled' : ''}>${isVisited ? 'Visited' : 'Visit'}</button></div>`; 
-            });
-            lucide.createIcons();
-            document.querySelectorAll('.visit-btn:not([disabled])').forEach(btn => btn.addEventListener('click', handleWebsiteVisit));
-        }
+  const listEl = document.getElementById('website-list');
+  listEl.innerHTML = '';
+  const websites = appConfig.websitesToVisit;
+  if (websites.length === 0) {
+    listEl.innerHTML = `<p class="text-center text-gray-400">No tasks available right now.</p>`;
+    return;
+  }
+  websites.forEach(site => {
+    const isVisited = userData.visitedWebsitesToday?.includes(site.link);
+    listEl.innerHTML += `
+      <div class="card-bg p-4 rounded-lg flex justify-between items-center">
+        <div class="flex items-center">
+          <i data-lucide="globe" class="w-8 h-8 mr-4 text-yellow-400"></i>
+          <div>
+            <h3 class="font-semibold">${site.name}</h3>
+            <p class="text-sm text-yellow-400">Get ${site.reward} Coins</p>
+          </div>
+        </div>
+        <button 
+          data-link="${site.link}" 
+          data-reward="${site.reward}" 
+          data-timer="${site.timer}" 
+          class="visit-btn ${isVisited ? 'bg-gray-500' : 'btn-accent'} px-4 py-2 text-sm rounded-full"
+          ${isVisited ? 'disabled' : ''}>
+            ${isVisited ? 'Visited' : 'Visit'}
+        </button>
+      </div>
+    `;
+  });
+  lucide.createIcons();
+  document.querySelectorAll('.visit-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', handleWebsiteVisit);
+  });
+}
+        
 
         async function handleWebsiteVisit(e) {
-  const button = e.target.closest("button");
+  const button = e.target.closest('button');
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
-  // Set timer to 305 seconds 
-  const timer = 305;
+  const timer = parseInt(button.dataset.timer) || 60; // 60 seconds minimum
 
   button.disabled = true;
   loader.style.display = "flex";
+  // Optional: await showAd(); // If you want to show an ad before visiting
+  loader.style.display = "none";
 
-  try {
-    await showAd();
-    loader.style.display = "none";
+  // Start timer
+  let start = Date.now();
+  const newTab = window.open(link, "_blank"); // Open site
 
-    const newTab = window.open(link, "_blank");
-    if (!newTab) {
-      button.disabled = false;
-      return showAlert("Please allow popups to continue.");
+  // Check if tab closed
+  let closedCheck = setInterval(async () => {
+    if (newTab.closed) {
+      clearInterval(closedCheck);
+      let diff = Math.floor((Date.now() - start) / 1000);
+      if (diff >= timer) {
+        // Give reward!
+        await updateBalance(reward, "Website Visit", `Visited ${link}`);
+        // Mark as visited so button disables
+        const visited = [...(userData.visitedWebsitesToday || []), link];
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          visitedWebsitesToday: visited,
+        });
+        userData.visitedWebsitesToday = visited;
+        button.textContent = "Visited";
+        button.classList.remove('btn-accent');
+        button.classList.add('bg-gray-500');
+        showAlert(`Congratulations! You earned ${reward} coins for visiting.`);
+      } else {
+        button.disabled = false;
+        button.textContent = "Visit Again";
+        showAlert(`You complete your task to you receipt coin!`);
+      }
     }
-
-    button.textContent = `Wait ${timer}s`;
-    let seconds = timer;
-
-    const interval = setInterval(() => {
-      seconds--;
-      button.textContent = `Wait ${seconds}s`;
-    }, 1000);
-
-    setTimeout(async () => {
-      clearInterval(interval);
-      button.textContent = "Verifying...";
-
-      // if (newTab.closed) {
-//   button.disabled = false;
-//   button.textContent = "Visit Again";
-//   return showAlert("You must stay on the site for the full timer to earn coins.");
-// }
-
-
-      newTab.close();
-
-      await updateBalance(reward, "Website Visit", `Verified ${link}`);
-
-      const visited = [...(userData.visitedWebsitesToday || []), link];
-      await updateDoc(doc(db, "users", currentUser.uid), { visitedWebsitesToday: visited });
-      userData.visitedWebsitesToday = visited;
-
-      button.textContent = "Visited";
-      button.classList.remove("btn-accent");
-      button.classList.add("bg-gray-500");
-
-      showAlert(`Congratulations! You earned ${reward} coins for visiting.`);
-    }, timer * 1000);
-  } catch (error) {
-    showAlert(error.toString());
-    button.disabled = false;
-    loader.style.display = "none";
-  }
+  }, 500);
 }
 
 
@@ -1005,6 +1012,7 @@ await updateDoc(doc(db, "users", currentUser.uid), {
 </body>
 
 </html>
+
 
 
 
