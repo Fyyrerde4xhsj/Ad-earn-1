@@ -913,7 +913,7 @@ await updateDoc(doc(db, "users", currentUser.uid), {
   const button = e.target.closest('button');
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
-  const timer = parseInt(button.dataset.timer) || 60; // 60 seconds minimum
+  const timer = parseInt(button.dataset.timer) || 503; // 503 seconds minimum
 
   button.disabled = true;
   loader.style.display = "flex";
@@ -1012,6 +1012,7 @@ await updateDoc(doc(db, "users", currentUser.uid), {
 </body>
 
 </html>
+
 
 
 
