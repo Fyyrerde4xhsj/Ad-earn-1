@@ -913,7 +913,8 @@ await updateDoc(doc(db, "users", currentUser.uid), {
   const button = e.target.closest('button');
   const link = button.dataset.link;
   const reward = parseInt(button.dataset.reward);
-  const timer = parseInt(button.dataset.timer) || 303; // 303 seconds minimum
+<div id="admin-timer" data-time="<%= YOUR_DB_TIME %>"></div>
+<span id="show-time">Loading...</span> sec
 
   button.disabled = true;
   loader.style.display = "flex";
@@ -1010,8 +1011,14 @@ await updateDoc(doc(db, "users", currentUser.uid), {
         }
     </script>
 </body>
+<script>
+const timerDiv = document.getElementById("admin-timer");
+const showTime = document.getElementById("show-time");
+if(timerDiv) showTime.textContent = timerDiv.dataset.time;
+</script>
 
 </html>
+
 
 
 
