@@ -915,6 +915,33 @@ await updateDoc(doc(db, "users", currentUser.uid), {
   const reward = parseInt(button.dataset.reward);
   const timer = parseInt(button.dataset.timer) || 303; // 303 seconds minimum
 
+  // ===== TIME CONTROL FROM ADMIN PANEL =====
+  const now = new Date();
+  const currentHour = now.getHours(); // 0–23
+
+  if (timeControlEnabled) {
+    let inAllowedTime;
+
+    // Example: 9–22 (simple range)
+    if (allowedStartHour < allowedEndHour) {
+      inAllowedTime = currentHour >= allowedStartHour && currentHour < allowedEndHour;
+    }
+    // Example: 22–6 (cross midnight)
+    else if (allowedStartHour > allowedEndHour) {
+      inAllowedTime = (currentHour >= allowedStartHour) || (currentHour < allowedEndHour);
+    }
+    // start == end → treat as blocked
+    else {
+      inAllowedTime = false;
+    }
+
+    if (!inAllowedTime) {
+      showAlert(`You can visit websites only between ${allowedStartHour}:00 and ${allowedEndHour}:00 as set by admin.`);
+      return; // stop function, no visit, no reward
+    }
+  }
+  // ===== END TIME CONTROL =====
+
   button.disabled = true;
   loader.style.display = "flex";
   // Optional: await showAd(); // If you want to show an ad before visiting
@@ -945,11 +972,12 @@ await updateDoc(doc(db, "users", currentUser.uid), {
       } else {
         button.disabled = false;
         button.textContent = "Visit Again";
-        showAlert(`You complete your task to you receipt coin!`);
+        showAlert("You complete your task to you receipt coin!");
       }
     }
   }, 500);
 }
+
 
 
         
@@ -1012,6 +1040,7 @@ await updateDoc(doc(db, "users", currentUser.uid), {
 </body>
 
 </html>
+
 
 
 
